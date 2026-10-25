@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Image & Text Recognition</title>
+
+    <!-- AI Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+    <style>
+        /* General Styling */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Segoe UI", Arial, sans-serif;
+            min-height: 100vh;
+            padding: 25px 15px;
+            color: #294f4d;
+            background: linear-gradient(
+                120deg,
+                #d5ffe4,
+                #b6e5e8,
+                #9dbdff
+            );
+        }
+
+        .container {
+            max-width: 1050px;
+            margin: auto;
+        }
+
+        /* Header */
+        header {
+            text-align: center;
+            padding: 30px 15px;
+        }
+
+        .tag {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.6);
+            color: #52784e;
+            padding: 8px 16px;
+            border-radius: 25px;
+            font-size: 13px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        h1 {
+            font-size: clamp(30px, 5vw, 48px);
+            margin: 20px 0 15px;
+            color: #52784e;
+        }
+
+        header p {
+            max-width: 650px;
+            margin: auto;
+            line-height: 1.7;
+            color: #50766f;
+        }
+
+        /* Main Layout */
+        .main {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 22px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 25px;
+            border-radius: 22px;
+            box-shadow: 0 15px 40px rgba(47, 92, 91, 0.12);
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 8px;
+            padding: 6px;
+            background: #e9f7ee;
+            border-radius: 12px;
+            margin-bottom: 25px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px 8px;
+            border: none;
+            border-radius: 9px;
+            background: transparent;
+            color: #5b7c72;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .tab.active {
+            background: white;
+            color: #315e56;
+            box-shadow: 0 3px 12px rgba(61, 118, 98, 0.1);
+        }
+
+        h2 {
+            font-size: 21px;
+            margin-bottom: 10px;
+        }
+
+        .hint {
+            font-size: 14px;
+            line-height: 1.6;
+            color: #66877b;
+            margin-bottom: 20px;
+        }
+
+        /* Upload Area */
+        .upload-area {
+            min-height: 240px;
+            padding: 20px;
+            border: 2px dashed #9ac8b5;
+            border-radius: 17px;
+            background: #f6fff9;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.3s;
+            overflow: hidden;
+        }
+
+        .upload-area:hover,
+        .upload-area.dragover {
+            border-color: #548b72;
+            background: #edfff3;
+        }
+
+        .upload-icon {
+            font-size: 45px;
+            margin-bottom: 15px;
+        }
+
+        .upload-area strong {
+            margin-bottom: 8px;
+            overflow-wrap: anywhere;
+        }
+
+        .upload-area span {
+            color: #66877b;
+            font-size: 13px;
+        }
+
+        #preview {
+            display: none;
+            max-width: 100%;
+            max-height: 260px;
+            margin-top: 15px;
+            border-radius: 12px;
+            object-fit: contain;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        /* Buttons */
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        button.action {
+            padding: 13px 18px;
+            border: none;
+            border-radius: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        button.action:hover {
+            transform: translateY(-2px);
+        }
+
+        button.action:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .primary {
+            flex: 1;
+            background: #527e62;
+            color: white;
+        }
+
+        .secondary {
+            background: #e8f4ed;
+            color: #456e5b;
+        }
+
+        /* Results */
+        .result-heading {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .badge {
+            background: #dcefe1;
+            color: #4b7655;
+            padding: 7px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .result-box {
+            min-height: 240px;
+            padding: 18px;
+            border-radius: 15px;
+            background: #f3fbf6;
+            border: 1px solid rgba(51, 93, 83, 0.15);
+        }
+
+        .empty {
+            text-align: center;
+            color: #7a9b90;
+            line-height: 1.8;
+            padding: 55px 10px;
+        }
+
+        .result-item {
+            padding: 13px 0;
+            border-bottom: 1px solid #dcebe1;
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .bar {
+            height: 7px;
+            background: #deeee4;
+            border-radius: 20px;
+            margin-top: 9px;
+            overflow: hidden;
+        }
+
+        .bar span {
+            display: block;
+            height: 100%;
+            background: #79ae81;
+            border-radius: 20px;
+        }
+
+        .ocr-text {
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            line-height: 1.8;
+            color: #365c52;
+        }
+
+        .status {
+            margin-top: 14px;
+            min-height: 22px;
+            color: #66877b;
+            font-size: 13px;
+        }
+
+        .status.error {
+            color: #ad4c45;
+        }
+
+        .status.success {
+            color: #3d7a51;
+        }
+
+        /* Project Information */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            margin-top: 25px;
+        }
+
+        .feature {
+            background: rgba(255, 255, 255, 0.55);
+            padding: 20px 12px;
+            border-radius: 15px;
+            text-align: center;
+        }
+
+        .feature h3 {
+            color: #4f7854;
+            font-size: 15px;
+            margin-bottom: 8px;
+        }
+
+        .feature p {
+            color: #5f8178;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        footer {
+            text-align: center;
+            color: #64857b;
+            font-size: 13px;
+            margin-top: 30px;
+            padding-bottom: 15px;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 750px) {
+            .main {
+                grid-template-columns: 1fr;
+            }
+
+            .features {
+                grid-template-columns: 1fr;
+            }
+
+            .card {
+                padding: 18px;
+            }
+
+            .result-heading {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <!-- Header -->
+    <header>
+        <span class="tag">PROJECT 04 · AI MINI PROJECT</span>
+
+        <h1>Image &amp; Text Recognition</h1>
+
+        <p>
+            Upload an image and let artificial intelligence identify
+            objects or recognize text inside the image using
+            pre-trained AI models.
+        </p>
+    </header>
+
+    <!-- Main Section -->
+    <section class="main">
+
+        <!-- Upload Card -->
+        <div class="card">
+
+            <div class="tabs">
+                <button
+                    class="tab active"
+                    id="imageTab"
+                    type="button">
+                    🖼️ Image Recognition
+                </button>
+
+                <button
+                    class="tab"
+                    id="textTab"
+                    type="button">
+                    🔤 Text Recognition
+                </button>
+            </div>
+
+            <h2 id="modeTitle">Recognize an Image</h2>
+
+            <p class="hint" id="modeHint">
+                Upload a picture to identify the objects inside it.
+            </p>
+
+            <label
+                class="upload-area"
+                id="uploadArea"
+                for="fileInput">
+
+                <div class="upload-icon" id="uploadIcon">📤</div>
+
+                <strong id="uploadTitle">
+                    Choose an image or drop it here
+                </strong>
+
+                <span id="uploadHint">
+                    PNG, JPG, WEBP · Select an image to begin
+                </span>
+
+                <img id="preview" alt="Image preview">
+
+            </label>
+
+            <input
+                type="file"
+                id="fileInput"
+                accept="image/*">
+
+            <div class="buttons">
+                <button
+                    class="action primary"
+                    id="runBtn"
+                    type="button"
+                    disabled>
+                    Analyze Image
+                </button>
+
+                <button
+                    class="action secondary"
+                    id="clearBtn"
+                    type="button">
+                    Clear
+                </button>
+            </div>
+
+            <div class="status" id="status" aria-live="polite">
+                Choose an image to get started.
+            </div>
+
+        </div>
+
+        <!-- Results Card -->
+        <div class="card">
+
+            <div class="result-heading">
+                <h2>Recognition Output</h2>
+
+                <span class="badge" id="resultBadge">
+                    Waiting for Image
+                </span>
+            </div>
+
+            <div
+                class="result-box"
+                id="resultBox"
+                aria-live="polite">
+
+                <div class="empty">
+                    ✨<br>
+                    Your AI results will appear here.<br>
+                    Upload an image and click Analyze.
+                </div>
+
+            </div>
+
+            <p class="hint" style="margin-top:15px; margin-bottom:0;">
+                Image recognition identifies possible objects.
+                Text recognition extracts readable words.
+            </p>
+
+        </div>
+
+    </section>
+
+    <!-- Project Features -->
+    <section class="features">
+
+        <div class="feature">
+            <h3>🤖 Pre-trained AI</h3>
+            <p>Uses the TensorFlow.js MobileNet model.</p>
+        </div>
+
+        <div class="feature">
+            <h3>🔤 Text Extraction</h3>
+            <p>Uses Tesseract.js OCR technology.</p>
+        </div>
+
+        <div class="feature">
+            <h3>💻 Browser Based</h3>
+            <p>Runs in your browser without a separate backend.</p>
+        </div>
+
+    </section>
+
+    <footer>
+        Project 04 · Basic Image or Text Recognition
+        <br><br>
+        Built using HTML, CSS, JavaScript and AI libraries.
+    </footer>
+
+</div>
+
+<script>
+    // HTML elements
+    const fileInput = document.getElementById("fileInput");
+    const preview = document.getElementById("preview");
+    const uploadArea = document.getElementById("uploadArea");
+
+    const runBtn = document.getElementById("runBtn");
+    const clearBtn = document.getElementById("clearBtn");
+
+    const statusEl = document.getElementById("status");
+    const resultBox = document.getElementById("resultBox");
+    const resultBadge = document.getElementById("resultBadge");
+
+    const imageTab = document.getElementById("imageTab");
+    const textTab = document.getElementById("textTab");
+
+    const modeTitle = document.getElementById("modeTitle");
+    const modeHint = document.getElementById("modeHint");
+
+    const uploadIcon = document.getElementById("uploadIcon");
+    const uploadTitle = document.getElementById("uploadTitle");
+    const uploadHint = document.getElementById("uploadHint");
+
+    // Application variables
+    let selectedFile = null;
+    let currentMode = "image";
+    let mobilenetModel = null;
+    let isBusy = false;
+    let previewUrl = null;
+
+    // Display status messages
+    function setStatus(message, type = "") {
+        statusEl.textContent = message;
+        statusEl.className = "status " + type;
+    }
+
+    // Change recognition mode
+    function setMode(mode) {
+        currentMode = mode;
+
+        const isImageMode = mode === "image";
+
+        imageTab.classList.toggle("active", isImageMode);
+        textTab.classList.toggle("active", !isImageMode);
+
+        modeTitle.textContent = isImageMode
+            ? "Recognize an Image"
+            : "Read Text in an Image";
+
+        modeHint.textContent = isImageMode
+            ? "The AI model will predict which objects appear in your picture."
+            : "OCR will extract readable words from your picture.";
+
+        runBtn.textContent = isImageMode
+            ? "Analyze Image"
+            : "Extract Text";
+
+        uploadHint.textContent = isImageMode
+            ? "PNG, JPG, WEBP · Upload a clear image"
+            : "For best results, use a sharp image with readable text";
+
+        if (selectedFile) {
+            setStatus(
+                isImageMode
+                    ? "Ready to identify objects."
+                    : "Ready to extract text."
+            );
+        }
+    }
+
+    imageTab.addEventListener("click", function () {
+        setMode("image");
+    });
+
+    textTab.addEventListener("click", function () {
+        setMode("text");
+    });
+
+    // Load the selected image
+    function loadFile(file) {
+        if (!file) return;
+
+        if (!file.type.startsWith("image/")) {
+            setStatus("Please choose a valid image file.", "error");
+            return;
+        }
+
+        if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+        }
+
+        selectedFile = file;
+        previewUrl = URL.createObjectURL(file);
+
+        preview.src = previewUrl;
+        preview.style.display = "block";
+
+        uploadIcon.style.display = "none";
+        uploadTitle.textContent = file.name;
+        uploadHint.textContent = "Click here to choose another image";
+
+        runBtn.disabled = false;
+
+        resultBadge.textContent = "Image Selected";
+
+        resultBox.innerHTML = `
+            <div class="empty">
+                Image ready!<br>
+                Click the button to run recognition.
+            </div>
+        `;
+
+        setStatus("Image loaded successfully.", "success");
+    }
+
+    // Upload using file picker
+    fileInput.addEventListener("change", function (event) {
+        loadFile(event.target.files[0]);
+    });
+
+    // Support drag and drop
+    uploadArea.addEventListener("dragover", function (event) {
+        event.preventDefault();
+        uploadArea.classList.add("dragover");
+    });
+
+    uploadArea.addEventListener("dragleave", function () {
+        uploadArea.classList.remove("dragover");
+    });
+
+    uploadArea.addEventListener("drop", function (event) {
+        event.preventDefault();
+        uploadArea.classList.remove("dragover");
+
+        loadFile(event.dataTransfer.files[0]);
+    });
+
+    // Clear image and results
+    clearBtn.addEventListener("click", function () {
+        if (isBusy) return;
+
+        selectedFile = null;
+        fileInput.value = "";
+
+        if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+            previewUrl = null;
+        }
+
+        preview.removeAttribute("src");
+        preview.style.display = "none";
+
+        uploadIcon.style.display = "block";
+
+        uploadTitle.textContent =
+            "Choose an image or drop it here";
+
+        uploadHint.textContent =
+            "PNG, JPG, WEBP · Upload an image to begin";
+
+        runBtn.disabled = true;
+
+        resultBadge.textContent = "Waiting for Image";
+
+        resultBox.innerHTML = `
+            <div class="empty">
+                ✨<br>
+                Your AI results will appear here.<br>
+                Upload an image and click Analyze.
+            </div>
+        `;
+
+        setStatus("Choose an image to get started.");
+    });
+
+    // Safely display text returned by AI libraries
+    function escapeHTML(value) {
+        return String(value).replace(/[&<>"']/g, function (char) {
+            const entities = {
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#39;"
+            };
+
+            return entities[char];
+        });
+    }
+
+    // IMAGE RECOGNITION
+    async function recognizeImage() {
+
+        setStatus("Loading the AI model. Please wait...");
+
+        // Load the pre-trained model once
+        if (!mobilenetModel) {
+            mobilenetModel = await mobilenet.load();
+        }
+
+        setStatus("Analyzing your image...");
+
+        // Predict the top five possible objects
+        const predictions = await mobilenetModel.classify(
+            preview,
+            5
+        );
+
+        resultBadge.textContent = "Image Results";
+
+        if (!predictions.length) {
+            resultBox.innerHTML = `
+                <div class="empty">
+                    No objects were identified.
+                    Try another image.
+                </div>
+            `;
+
+            return;
+        }
+
+        // Display prediction labels and confidence scores
+        resultBox.innerHTML = predictions.map(function (item) {
+
+            const percent = Math.round(item.probability * 100);
+
+            return `
+                <div class="result-item">
+
+                    <div class="result-row">
+                        <span>${escapeHTML(item.className)}</span>
+                        <span>${percent}%</span>
+                    </div>
+
+                    <div class="bar">
+                        <span style="width:${percent}%"></span>
+                    </div>
+
+                </div>
+            `;
+
+        }).join("");
+
+        setStatus(
+            "Image recognition completed successfully.",
+            "success"
+        );
+    }
+
+    // TEXT RECOGNITION USING OCR
+    async function recognizeText() {
+
+        if (!window.Tesseract) {
+            throw new Error(
+                "The OCR library could not load. Check your internet connection."
+            );
+        }
+
+        setStatus("Extracting text. Please wait...");
+
+        resultBox.innerHTML = `
+            <div class="empty">
+                ⏳<br>
+                Processing image with OCR...
+            </div>
+        `;
+
+        // Recognize English text
+        const result = await Tesseract.recognize(
+            preview.src,
+            "eng",
+            {
+                logger: function (message) {
+
+                    if (
+                        message.status === "recognizing text" &&
+                        message.progress != null
+                    ) {
+                        const percent = Math.round(
+                            message.progress * 100
+                        );
+
+                        setStatus(
+                            "Reading text... " + percent + "%"
+                        );
+                    }
+                }
+            }
+        );
+
+        const extractedText = result.data.text.trim();
+
+        resultBadge.textContent = "Text Results";
+
+        if (!extractedText) {
+
+            resultBox.innerHTML = `
+                <div class="empty">
+                    No readable text found.<br>
+                    Try an image with clearer letters.
+                </div>
+            `;
+
+        } else {
+
+            resultBox.innerHTML = `
+                <div class="ocr-text">${escapeHTML(extractedText)}</div>
+
+                <div class="buttons">
+                    <button
+                        class="action secondary"
+                        id="copyBtn"
+                        type="button">
+                        Copy Extracted Text
+                    </button>
+                </div>
+            `;
+
+            // Copy the extracted text
+            document.getElementById("copyBtn")
+                .addEventListener("click", async function () {
+
+                    try {
+                        await navigator.clipboard.writeText(
+                            extractedText
+                        );
+
+                        setStatus(
+                            "Text copied to clipboard.",
+                            "success"
+                        );
+
+                    } catch (error) {
+
+                        setStatus(
+                            "Clipboard unavailable. Select and copy the text manually."
+                        );
+                    }
+                });
+        }
+
+        setStatus(
+            "Text recognition completed successfully.",
+            "success"
+        );
+    }
+
+    // Run the selected recognition task
+    runBtn.addEventListener("click", async function () {
+
+        if (!selectedFile || isBusy) {
+            return;
+        }
+
+        isBusy = true;
+
+        runBtn.disabled = true;
+        clearBtn.disabled = true;
+
+        try {
+
+            if (currentMode === "image") {
+                await recognizeImage();
+            } else {
+                await recognizeText();
+            }
+
+        } catch (error) {
+
+            console.error(error);
+
+            resultBadge.textContent = "Recognition Error";
+
+            resultBox.innerHTML = `
+                <div class="empty">
+                    ${escapeHTML(
+                        error.message ||
+                        "Recognition failed. Please try again."
+                    )}
+                </div>
+            `;
+
+            setStatus(
+                "Recognition failed. Check your internet connection and try again.",
+                "error"
+            );
+
+        } finally {
+
+            isBusy = false;
+
+            runBtn.disabled = !selectedFile;
+            clearBtn.disabled = false;
+        }
+    });
+</script>
+
+</body>
+</html>
